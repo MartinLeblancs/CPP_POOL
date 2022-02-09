@@ -1,0 +1,261 @@
+#!/bin/sh
+
+##################
+## Display Help ##
+##################
+
+Display_Help()
+{
+    echo -e "Usage: ./bdsh [OPTION]... [COMMAND] [REQUEST]\n"
+    echo -e "OPTION:\n
+    \t-h : --help		display help\n
+    \t-f : --file=FILE	json database file\n
+    \t-j : json formated output for select command\n"
+    echo -e "COMMAND:\n
+    \tcreate : create database\n
+    \tinsert : insert data in database\n
+    \tupdate : update data in database\n
+    \tselect : display data from database\n"
+}
+
+#############################
+## Small Functions  Create ##
+#############################
+
+############################
+## Small Functions Select ##
+############################
+
+check_args_select ()
+{
+    cat $2 | tr -d '\n\t ' >> temp.json
+    while (($increment<=$scd_count))
+    do
+        if [ "$(grep -o "\"data_${scd_tab[increment]}\"" temp.json)" != "\"data_${scd_tab[increment]}\"" ]
+        then 
+            echo "Can't find this database"
+            exit 1
+        fi
+        ((increment++))
+    done
+    increment=1
+    while  (($increment<=$count))
+    do 
+        if [ "$(sed "s/.*\"desc_$4\":\[//;s/\].*//" temp.json | grep -o "${tab[increment]}")" != ${tab[increment]} ]
+        then 
+            echo "Can't find this data in this database"
+            exit 1
+        fi
+        ((increment++))
+    done
+}
+
+create_firstline_select ()
+{
+    increment=1
+    while (($increment<=$count))
+    do 
+        echo -ne "${tab[increment]} " >> temp.json
+        if [[ $increment<$count ]]
+        then
+            echo -n "| " >> temp.json
+        fi
+        ((increment++))
+    done
+}
+
+create_secondline_select ()
+{
+    increment=0
+    while (( $increment!=$(head -n 1 temp.json| wc -m)))
+    do
+        echo -n "-" >> temp.json
+        ((increment++))
+    done
+}
+
+###############
+## Functions ##
+###############
+
+Create_all()
+{
+    if [ $4 == "database" ]
+    then
+        echo -n "" > $2
+        echo -e "{\n}" >> $2
+    elif  [ $4 == "table" ]
+    then   
+    if grep -i "\"desc_$5\":" $2
+    then
+        echo "This table already exist"
+        exit 1
+    fi
+    count=1
+        tab[count]=$(echo $6 | cut -d',' -f$count)
+        while [[ ${tab[count]} != "" ]]
+        do
+            ((count++))
+            if [[ $(echo $6 | cut -d',' -f$count) != ${tab[1]} ]]
+            then
+                tab[count]=$(echo $6 | cut -d',' -f$count)
+            else 
+                tab[count]=""
+            fi
+        done   
+    head -c -2 $2 >> temp.json
+    if [[ $(head -c -2 $2) != "{" ]]
+    then
+        echo "," >> temp.json
+    fi
+        echo -e -n "\t\"desc_$5\": [\n" >> temp.json
+    increment=0
+    ((count--))
+    while [[ $increment<=$count ]]
+    do
+        ((increment++))
+        if (($increment<$count))
+        then
+            echo -n -e "\t\t\"${tab[increment]}\"" >> temp.json
+            echo "," >> temp.json
+        else
+            echo -n -e "\t\t\"${tab[increment]}\"" >> temp.json
+            echo -n -e "\n" >> temp.json
+        fi
+    done
+    echo -n -e "\t]" >> temp.json
+    increment=0
+    echo -e -n ",\n\t\"data_$5\": []" >> temp.json
+
+    echo -n -e "\n}" >> temp.json
+    echo -n "" > $2
+    cat temp.json >> $2
+    rm -f temp.json
+    else 
+        exit 1
+    fi
+}
+
+# Insert_all()
+# {
+#     count=1
+#     tab[count]=$(echo $5 | cut -d',' -f$count)
+#     while [[ ${tab[count]} != "" ]]
+#     do
+#         ((count++))
+#         tab[count]=$(echo $5 | cut -d',' -f$count)
+#     done  
+#     ((count--))
+#     increment=1
+#     while (($increment<=$count))
+#     do
+#         # if (($increment==1))
+#         # then
+#         #     sed -i "/\"data_$4\": \[/a \ \t{" $2
+#         # fi
+#         if (($increment==$count))
+#         then 
+#             sed -i "/\"data_user\": \[\n\ta/a oui" $2
+#         fi
+#         ((increment++))
+#     done
+
+#     # while [[ $increment<]]     
+#     # sed -i "/\"data_$4\": \[/a \ \t\{\n\t\t\"${tab[1]}\"\n\t}" $2
+#     # sed -i -e "s/=/\": \"/g" $2
+# }
+
+Select_all()
+{
+        count=1
+    tab[count]=$(echo $5 | cut -d',' -f$count)
+    while [[ ${tab[count]} != "" ]]
+    do
+        ((count++))
+        if [[ $(echo $5 | cut -d',' -f$count) != ${tab[1]} ]]
+        then
+            tab[count]=$(echo $5 | cut -d',' -f$count)
+        else 
+            tab[count]=""
+        fi    
+    done  
+    scd_count=1
+    scd_tab[scd_count]=$(echo $4 | cut -d',' -f$scd_count)
+    while [[ ${scd_tab[scd_count]} != "" ]]
+    do
+        ((scd_count++))
+        if [[ $(echo $4 | cut -d',' -f$scd_count) != ${scd_tab[1]} ]]
+        then
+            scd_tab[scd_count]=$(echo $4 | cut -d',' -f$scd_count)
+        else 
+            scd_tab[scd_count]=""
+        fi    
+    done 
+    ((count--))
+    ((scd_count--))
+    increment=1
+    echo -n "" > temp.json
+    check_args_select $@ $increment $count $tab $scd_tab $scd_count
+    echo -n "" > temp.json
+    create_firstline_select $tab $count
+    echo -ne "\n" >> temp.json
+    create_secondline_select $@
+    echo -ne "\n" >> temp.json
+    increment=1
+    while (($increment<=$scd_count))
+    do 
+        grep -Poz "(\"data_${scd_tab[increment]}\"\s*:\s*\[)\K[^\]]+" example.json >> temp2.json
+        ((increment++))
+    done
+    increment=1
+    # while (($increment<=$count))
+    # do 
+    #     third_tab[increment]=$(grep -Poz "(\"${tab[increment]}\"\s*:\s*\")\K[^\,]+" temp2.json)
+    #     ((increment++))
+    # done
+    echo ${third_tab[1]}
+    datatab[2]=$(echo ${third_tab[1]} | cut -d"\"" -f11)
+
+}
+
+Check_Command()
+{
+    if [ $3 == "create" ]
+    then
+        Create_all $@
+    elif [ $3 == "insert" ]
+    then
+        Insert_all $@
+    elif [ $3 == "select" ]
+    then 
+        Select_all $@
+    else
+        exit 1
+    fi 
+}
+
+Check_Args()
+{
+    if [ $1 != "-f" ] && [ $1 != "-h" ] && [ $1 != "-j" ]
+    then 
+        exit 1
+    fi
+    if [ $1 == "-h" ]
+    then 
+        Display_Help 
+    fi
+    if [ $1 == "-f" ] && [ -e $2 ]
+    then 
+        Check_Command $@
+    else
+        touch $2
+        Check_Command $@
+    fi
+}
+
+#################
+## Main Script ##
+#################
+
+Check_Args $@
+exit 0

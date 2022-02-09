@@ -1,0 +1,13 @@
+firstname    | lastname
+-------------------------
+John         | SMITH
+Robert John  | WILLIAMS
+Lisa         | SIMPSON
+             | SMITH
+Laura        | SMITH
+             |
+firstname  | id
+-----------------
+John       | 1
+           | 10
+Laura      |
