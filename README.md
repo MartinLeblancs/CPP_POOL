@@ -1,2 +1,2 @@
 # CPP_POOL
-Epitech pool in c++
+Epitech Second Year pool in c++
